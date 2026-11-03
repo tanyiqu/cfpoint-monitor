@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+cfmon.db
+.workbuddy
+.venv
+
 # C extensions
 *.so
 
@@ -218,3 +222,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== CF 点监控 =====
+# 运行数据（含账号 Cookie，绝不能提交）
+data/
+*.db
+*.db-wal
+*.db-shm
+

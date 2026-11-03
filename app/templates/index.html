@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CF 点监控 · 后台</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23f2701f'/><text x='50' y='68' font-size='46' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>CF</text></svg>">
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-dash" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zM13 3v6h8V3h-8z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-hook" viewBox="0 0 24 24"><path d="M18 16.98h-5.99c-1.1 0-1.95-.94-1.95-2v-4"/><circle cx="6" cy="8" r="2.6"/><circle cx="18" cy="18" r="3"/><path d="M6 10.6V13a3 3 0 0 0 3 3h1"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 4v16M15 4v16"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CF</div>
+      <div class="brand-text">CF 点监控<small>POINT MONITOR</small></div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><svg><use href="#i-dash"/></svg>总览</button>
+      <button class="nav-item" data-view="accounts"><svg><use href="#i-user"/></svg>账号管理<span class="dot hidden" id="navBadge"></span></button>
+      <button class="nav-item" data-view="webhook"><svg><use href="#i-hook"/></svg>Webhook</button>
+      <button class="nav-item" data-view="settings"><svg><use href="#i-gear"/></svg>采集设置</button>
+      <button class="nav-item" data-view="logs"><svg><use href="#i-log"/></svg>事件日志</button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="row"><span class="live-dot" id="sideDot"></span><span id="sideStatus">正在连接…</span></div>
+      <div class="row">下次采集 <b id="sideNext">—</b></div>
+      <div class="row">下次保活 <b id="sideKeep">—</b></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-inner">
+
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">总览</h1>
+          <p id="pageDesc">实时监控账号 CF 点变化，变动时通过 Webhook 推送</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" id="btnPause"><svg><use href="#i-pause"/></svg><span>暂停采集</span></button>
+          <button class="btn" id="btnReload"><svg><use href="#i-refresh"/></svg><span>刷新</span></button>
+          <button class="btn btn-primary" id="btnAddTop"><svg><use href="#i-plus"/></svg><span>添加账号</span></button>
+        </div>
+      </header>
+
+      <!-- ============================================ 总览 -->
+      <section class="view" id="view-dashboard">
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="stat-label">账号总数</div>
+            <div class="stat-value" id="statAccounts">—</div>
+            <div class="stat-sub" id="statAccountsSub">其中 0 个已停用</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">CF 点合计</div>
+            <div class="stat-value accent" id="statPoints">—</div>
+            <div class="stat-sub">所有账号当前余额之和</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">监控正常</div>
+            <div class="stat-value ok" id="statOk">—</div>
+            <div class="stat-sub">Cookie 有效、数据新鲜</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">需要处理</div>
+            <div class="stat-value bad" id="statBad">—</div>
+            <div class="stat-sub">Cookie 失效 / 采集异常</div>
+          </div>
+        </div>
+
+        <div class="panel runner">
+          <div class="lead"><span class="live-dot" id="runDot"></span><span id="runText">后台调度中</span></div>
+          <div class="item">采集频率 <b id="runInterval">—</b></div>
+          <div class="item">下次采集 <b id="runNext">—</b></div>
+          <div class="item">下次保活 <b id="runKeep">—</b></div>
+          <div class="item" id="runActivity"></div>
+          <div class="spacer"></div>
+          <button class="btn btn-sm btn-ghost" data-goto="settings">调整频率</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>账号概览<span class="sub">点击卡片可实时预览</span></h2>
+            <button class="btn btn-sm btn-ghost" data-goto="accounts">管理账号</button>
+          </div>
+          <div class="card-grid" id="dashCards"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>最近事件</h2>
+            <button class="btn btn-sm btn-ghost" data-goto="logs">全部日志</button>
+          </div>
+          <div class="event-mini" id="dashEvents"></div>
+        </div>
+      </section>
+
+      <!-- ============================================ 账号 -->
+      <section class="view hidden" id="view-accounts">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>账号列表<span class="sub" id="acctCount"></span></h2>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" id="btnRefreshAll"><svg><use href="#i-refresh"/></svg>全部刷新</button>
+              <button class="btn btn-sm btn-primary" id="btnAdd"><svg><use href="#i-plus"/></svg>添加账号</button>
+            </div>
+          </div>
+          <div class="panel-body tight">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>角色</th>
+                    <th class="num">CF 点</th>
+                    <th>状态</th>
+                    <th>Cookie 年龄</th>
+                    <th>最后更新</th>
+                    <th style="text-align:right">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="acctRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================ Webhook -->
+      <section class="view hidden" id="view-webhook">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Webhook 推送</h2>
+            <label class="switch">
+              <input type="checkbox" data-setting="webhook_enabled">
+              <span class="track"></span><span class="txt">启用推送</span>
+            </label>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="field">
+                <label>推送目标</label>
+                <select data-setting="webhook_type" id="webhookType">
+                  <option value="generic">通用 JSON（自建服务 / n8n / Node-RED）</option>
+                  <option value="wecom">企业微信群机器人</option>
+                  <option value="dingtalk">钉钉群机器人</option>
+                  <option value="feishu">飞书群机器人</option>
+                  <option value="serverchan">Server酱（Turbo / ³）</option>
+                  <option value="bark">Bark（iOS）</option>
+                  <option value="custom">自定义 Body 模板</option>
+                </select>
+                <div class="hint" id="webhookTypeHint"></div>
+              </div>
+
+              <div class="field">
+                <label>Webhook 地址</label>
+                <input type="text" data-setting="webhook_url" placeholder="https://...">
+                <div class="hint">企业微信填 <code>https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...</code></div>
+              </div>
+
+              <div class="field hidden" id="secretField">
+                <label>钉钉加签密钥 <span class="muted small">（可选）</span></label>
+                <input type="text" data-setting="webhook_secret" placeholder="SEC...">
+                <div class="hint">机器人安全设置选「加签」时填写，会自动拼接 timestamp / sign</div>
+              </div>
+
+              <div class="field full hidden" id="tplField">
+                <label>自定义 Body 模板</label>
+                <textarea class="code" data-setting="webhook_body_tpl" rows="4" placeholder='{"text":"{{message}}","account":"{{account}}","before":"{{before}}","after":"{{after}}","delta":"{{delta}}"}'></textarea>
+                <div class="hint">可用变量：<code>{{event}}</code> <code>{{title}}</code> <code>{{message}}</code> <code>{{account}}</code> <code>{{role}}</code> <code>{{before}}</code> <code>{{after}}</code> <code>{{delta}}</code> <code>{{delta_text}}</code> <code>{{cfpoint}}</code> <code>{{time}}</code>。内容若是合法 JSON 会按 JSON 发送。</div>
+              </div>
+
+              <div class="field full">
+                <label>自定义请求头 <span class="muted small">（可选，JSON）</span></label>
+                <textarea class="code" data-setting="webhook_headers" rows="2" placeholder='{"Authorization":"Bearer xxx"}'></textarea>
+              </div>
+            </div>
+
+            <div class="divider" style="margin:18px 0"></div>
+
+            <div class="section-title">推送场景</div>
+            <div class="form-grid">
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="notify_on_change"><span class="track"></span><span class="txt">CF 点发生变化</span></label>
+                <div class="hint">核心功能，检测到余额变动即推送</div>
+              </div>
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="notify_on_expired"><span class="track"></span><span class="txt">Cookie 失效</span></label>
+                <div class="hint">登录态过期时提醒更换 Cookie</div>
+              </div>
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="notify_on_recover"><span class="track"></span><span class="txt">从异常中恢复</span></label>
+                <div class="hint">账号重新查询成功时通知</div>
+              </div>
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="notify_on_error"><span class="track"></span><span class="txt">连续采集失败</span></label>
+                <div class="hint">连续失败 <input type="number" data-setting="error_notify_after" style="width:64px;display:inline-block;padding:2px 7px;height:26px" min="1" max="50"> 次后推送</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn" id="btnWebhookTest"><svg><use href="#i-send"/></svg>发送测试</button>
+            <span class="small muted" id="webhookTestResult"></span>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btnWebhookSave">保存配置</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>推送内容示例</h2></div>
+          <div class="panel-body">
+            <pre class="code" id="payloadSample" style="margin:0;background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-family:var(--mono);font-size:12px;line-height:1.65;color:var(--text-2)"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================ 设置 -->
+      <section class="view hidden" id="view-settings">
+        <div class="panel">
+          <div class="panel-head"><h2>采集频率</h2></div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="field full">
+                <label>轮询间隔</label>
+                <div class="chips" id="intervalChips">
+                  <button class="chip" data-interval="30">30 秒</button>
+                  <button class="chip" data-interval="60">1 分钟</button>
+                  <button class="chip" data-interval="300">5 分钟</button>
+                  <button class="chip" data-interval="600">10 分钟</button>
+                  <button class="chip" data-interval="1800">30 分钟</button>
+                  <button class="chip" data-interval="3600">1 小时</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;margin-top:6px">
+                  <input type="number" data-setting="poll_interval" id="intervalInput" min="20" max="86400" style="width:130px">
+                  <span class="small muted">秒（最小 20 秒，建议不低于 60 秒）</span>
+                </div>
+                <div class="hint">所有启用账号会按此间隔依次采集，账号之间还有 1~3 秒随机间隔，实际一轮耗时 = 间隔 × 账号数。</div>
+              </div>
+
+              <div class="field">
+                <label>随机抖动 <span class="muted small" id="jitterVal">15%</span></label>
+                <input type="range" data-setting="jitter" id="jitterRange" min="0" max="50" step="5" style="width:100%">
+                <div class="hint">每次间隔上下浮动，避免固定节奏被风控识别</div>
+              </div>
+
+              <div class="field">
+                <label>单次请求超时（秒）</label>
+                <input type="number" data-setting="request_timeout" min="5" max="60">
+              </div>
+
+              <div class="field">
+                <label>历史数据保留（天）</label>
+                <input type="number" data-setting="history_keep_days" min="1" max="3650">
+              </div>
+
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="monitor_paused"><span class="track"></span><span class="txt">暂停全部采集</span></label>
+                <div class="hint">暂停期间不会请求接口，配置与账号都会保留</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <span class="small muted">改动保存后立即生效，不用重启</span>
+            <div class="spacer"></div>
+            <button class="btn btn-primary js-save-settings">保存设置</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Cookie 保活</h2>
+            <label class="switch">
+              <input type="checkbox" data-setting="keepalive_enabled">
+              <span class="track"></span><span class="txt">开启心跳</span>
+            </label>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="field">
+                <label>心跳间隔（秒）</label>
+                <input type="number" data-setting="keepalive_interval" min="120" max="86400">
+                <div class="hint">建议 10~20 分钟。每次心跳会用该账号 Cookie 访问一次活动页，刷新服务端会话活跃时间</div>
+              </div>
+              <div class="field">
+                <label>保活策略说明</label>
+                <div class="hint" style="line-height:1.75">
+                  · 固定浏览器指纹（UA / Referer / Origin / Accept）<br>
+                  · 定期 GET 活动页，模拟真人重新打开页面<br>
+                  · 间隔随机抖动，账号之间串行且有停顿<br>
+                  · Cookie 失效后自动降速，避免触发风控<br>
+                  · 记录 Cookie 使用时长，界面提示更换时机
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <span class="small muted">改动保存后立即生效</span>
+            <div class="spacer"></div>
+            <button class="btn btn-primary js-save-settings">保存设置</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>如何获取 Cookie</h2></div>
+          <div class="panel-body">
+            <ol class="steps">
+              <li>用目标账号登录 <code>https://cf.qq.com/cp/a20241022query/page.html?type=9</code></li>
+              <li>按 <code>F12</code> 打开开发者工具，切到 <b>Network</b>，筛选 <code>ide</code></li>
+              <li>点开对 <code>cf.ams.game.qq.com/ide/</code> 的 POST 请求</li>
+              <li>在 <b>Request Headers</b> 里找到 <b>Cookie</b>，整行复制</li>
+              <li>回到本页「账号管理 → 添加账号」，粘贴进 Cookie 输入框即可</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================ 日志 -->
+      <section class="view hidden" id="view-logs">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>事件日志<span class="sub">变动、失效、推送结果都在这里</span></h2>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="logFilter" style="width:130px;height:30px;padding:0 28px 0 9px;font-size:12.5px">
+                <option value="">全部类型</option>
+                <option value="change">CF点变动</option>
+                <option value="expired">Cookie 失效</option>
+                <option value="recover">恢复</option>
+                <option value="error">采集异常</option>
+                <option value="info">系统</option>
+              </select>
+              <button class="btn btn-sm btn-ghost" id="btnLogRefresh"><svg><use href="#i-refresh"/></svg>刷新</button>
+              <button class="btn btn-sm btn-danger" id="btnLogClear">清空</button>
+            </div>
+          </div>
+          <div class="panel-body tight">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:150px">时间</th>
+                    <th style="width:110px">类型</th>
+                    <th>内容</th>
+                    <th style="width:110px">推送</th>
+                  </tr>
+                </thead>
+                <tbody id="logRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div id="toasts"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
