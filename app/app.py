@@ -27,6 +27,7 @@ CF 点监控 —— Flask 后端。
 import argparse
 import json
 import os
+import re
 import threading
 import time
 from datetime import datetime
@@ -50,6 +51,11 @@ _started = threading.Event()
 monitor = monitor_mod.monitor
 
 WEBHOOK_TYPES = ["generic", "wecom", "dingtalk", "feishu", "serverchan", "bark", "custom"]
+
+# 采集模式：interval=实时采集（按间隔轮询）/ daily=定时采集（每天固定时间点）
+SCHEDULE_MODES = ["interval", "daily"]
+# 定时采集的提醒方式：change=仅在有变化时提醒 / always=每次采集后汇总提醒
+DAILY_NOTIFY_MODES = ["change", "always"]
 
 
 # ================================================================ 工具
@@ -161,9 +167,34 @@ def validate_settings(raw):
     except (TypeError, ValueError):
         warnings.append("随机抖动取值无效，已保留原值")
 
+    # ---- 采集模式 ----
+    mode = str(raw.get("schedule_mode", current.get("schedule_mode")) or "interval").strip()
+    if mode not in SCHEDULE_MODES:
+        warnings.append("未知的采集模式，已回退为实时采集")
+        mode = "interval"
+    out["schedule_mode"] = mode
+
+    raw_times = str(raw.get("daily_times", current.get("daily_times")) or "")
+    slots = monitor_mod.parse_daily_times(raw_times)
+    if not slots:
+        warnings.append("定时采集时间点为空或格式无效（应为 HH:MM），已保留原值")
+        out["daily_times"] = current.get("daily_times") or "06:00"
+    else:
+        submitted = [x for x in re.split(r"[,;，；\s]+", raw_times.strip()) if x]
+        if len(submitted) > len(slots):
+            warnings.append("部分时间点格式无效已忽略，仅保留 %s" % ",".join(slots))
+        out["daily_times"] = ",".join(slots)
+
+    notify_mode = str(raw.get("daily_notify_mode",
+                              current.get("daily_notify_mode")) or "change").strip()
+    if notify_mode not in DAILY_NOTIFY_MODES:
+        warnings.append("未知的定时提醒方式，已回退为有变化时提醒")
+        notify_mode = "change"
+    out["daily_notify_mode"] = notify_mode
+
     for key in ("webhook_enabled", "keepalive_enabled", "monitor_paused",
                 "notify_on_change", "notify_on_expired", "notify_on_recover",
-                "notify_on_error"):
+                "notify_on_error", "notify_on_digest"):
         out[key] = as_bool(key)
 
     wtype = str(raw.get("webhook_type", current.get("webhook_type")) or "generic").strip()
@@ -316,8 +347,8 @@ def api_account_create():
         db.add_snapshot(account_id, cfpoint, coins_json)
     db.add_event(account_id, "info", "新增账号：%s" % name, "已添加账号 %s" % name)
 
-    # 新增后立刻进入采集节奏
-    monitor.next_poll_at = time.time()
+    # 新增后立刻进入采集节奏（定时模式则排到下一个时间点）
+    monitor.reschedule()
     return jsonify({"ok": True, "id": account_id, "message": "账号已添加",
                     "account": serialize_account(db.get_account(account_id))})
 
@@ -370,7 +401,7 @@ def api_account_update(account_id):
     result = None
     if "cookie" in fields:
         result = monitor.check_account(account_id, source="manual", notify=False)
-        monitor.next_poll_at = time.time()
+        monitor.reschedule()
 
     return jsonify({"ok": True, "message": "已保存",
                     "account": serialize_account(db.get_account(account_id)),
@@ -470,8 +501,8 @@ def api_settings_save():
     if not values:
         return err("没有可保存的配置项")
     db.save_settings(values)
-    # 频率改了立刻生效，不用等下一轮
-    monitor.next_poll_at = time.time()
+    # 采集模式 / 频率改了立刻生效：实时模式马上补一轮，定时模式重排到下一个时间点
+    monitor.reschedule()
     return jsonify({"ok": True, "message": "配置已保存" + ("（%s）" % "；".join(warnings) if warnings else ""),
                     "settings": db.get_settings(), "warnings": warnings})
 
@@ -503,7 +534,7 @@ def api_monitor_pause():
     data = body_json()
     paused = "1" if data.get("paused") else "0"
     db.save_settings({"monitor_paused": paused})
-    monitor.next_poll_at = time.time()
+    monitor.reschedule()
     return jsonify({"ok": True, "paused": paused == "1",
                     "message": "已暂停采集" if paused == "1" else "已恢复采集"})
 

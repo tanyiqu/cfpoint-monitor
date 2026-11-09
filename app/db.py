@@ -26,7 +26,10 @@ _WRITE_LOCK = threading.RLock()
 # 全部以字符串存库，取值时再转换，避免 sqlite 类型推断的坑。
 DEFAULT_SETTINGS = {
     # ---- 采集 ----
-    "poll_interval": "300",        # 轮询间隔（秒）
+    "schedule_mode": "interval",   # interval=实时采集（按间隔轮询）/ daily=定时采集（每天固定时间点）
+    "poll_interval": "300",        # 实时采集的轮询间隔（秒）
+    "daily_times": "06:00",        # 定时采集的时间点，逗号分隔，24 小时制，如 06:00,18:00
+    "daily_notify_mode": "change", # 定时采集的提醒方式：change=有变化才提醒 / always=每次采集后汇总提醒
     "jitter": "0.15",              # 随机抖动比例 0~0.5，避免固定周期被风控
     "request_timeout": "15",       # 单次接口超时（秒）
     "history_keep_days": "30",     # 快照保留天数
@@ -50,6 +53,7 @@ DEFAULT_SETTINGS = {
     "notify_on_expired": "1",      # Cookie 失效
     "notify_on_recover": "1",      # 从异常恢复
     "notify_on_error": "0",        # 连续请求失败
+    "notify_on_digest": "1",       # 定时采集汇总（定时模式选“每次采集后都提醒”时使用）
     "error_notify_after": "3",     # 连续失败几次后推送
 }
 
@@ -98,7 +102,7 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id  INTEGER,
-    kind        TEXT DEFAULT 'info',   -- change/expired/recover/error/info/keepalive/test
+    kind        TEXT DEFAULT 'info',   -- change/expired/recover/error/digest/info/keepalive/test
     title       TEXT DEFAULT '',
     message     TEXT DEFAULT '',
     push_status TEXT DEFAULT 'none',   -- none/success/failed/skipped

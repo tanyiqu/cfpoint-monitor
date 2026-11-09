@@ -29,11 +29,21 @@
 
   const EVENT_META = {
     change: { icon: '⇅', label: 'CF点变动' },
+    digest: { icon: '⏱', label: '定时汇总' },
     expired: { icon: '!', label: 'Cookie 失效' },
     recover: { icon: '✓', label: '恢复' },
     error: { icon: '!', label: '采集异常' },
     info: { icon: 'i', label: '系统' },
     test: { icon: '✉', label: '测试' }
+  };
+
+  /* 事件类型 -> 胶囊配色，日志表格与类型筛选共用 */
+  const KIND_PILL = {
+    change: 'info',
+    digest: 'info',
+    expired: 'bad',
+    error: 'bad',
+    recover: 'ok'
   };
 
   const PUSH_META = {
@@ -108,6 +118,24 @@
     if (sec < 60) return sec + ' 秒';
     if (sec < 3600) return (Math.round(sec / 6) / 10) + ' 分钟';
     return (Math.round(sec / 360) / 10) + ' 小时';
+  }
+
+  /* 把 daily_times（"06:00,18:00"）切成数组，兼容中文逗号与空格 */
+  function splitDailyTimes(text) {
+    return String(text || '')
+      .split(/[,;，；\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  /* 采集模式的一句话说明，总览与设置页共用 */
+  function scheduleLabel(monitor) {
+    const m = monitor || state.monitor || {};
+    if (m.schedule_mode === 'daily') {
+      const times = splitDailyTimes(m.daily_times).join(' / ') || '—';
+      return '每天 ' + times;
+    }
+    return '每 ' + intervalText(m.poll_interval) + '采集';
   }
 
   /* ------------------------------------------------------------ 请求 */
@@ -255,7 +283,7 @@
     dashboard: { title: '总览', desc: '实时监控账号 CF 点变化，变动时通过 Webhook 推送' },
     accounts: { title: '账号管理', desc: '添加账号、粘贴 Cookie、随时实时预览' },
     webhook: { title: 'Webhook', desc: '配置推送目标与触发场景' },
-    settings: { title: '采集设置', desc: '调整获取频率、保活策略与数据保留' },
+    settings: { title: '采集设置', desc: '选择实时 / 定时采集模式，配置频率与提醒方式' },
     logs: { title: '事件日志', desc: '每一次变动与推送结果都有记录' }
   };
 
@@ -349,7 +377,7 @@
     const paused = m.paused;
     $('#runDot').classList.toggle('off', !m.running || paused);
     $('#runText').textContent = !m.running ? '后台未运行' : (paused ? '采集已暂停' : '后台调度中');
-    $('#runInterval').textContent = intervalText(m.poll_interval);
+    $('#runInterval').textContent = scheduleLabel(m);
     $('#runActivity').textContent = m.last_activity || '';
     $('#btnPause').innerHTML = paused
       ? '<svg><use href="#i-play"/></svg><span>恢复采集</span>'
@@ -431,6 +459,7 @@
       }
     });
     syncIntervalChips();
+    syncScheduleChips();
     renderWebhookVisibility();
   }
 
@@ -448,6 +477,42 @@
   function syncIntervalChips() {
     const cur = Number($('#intervalInput').value) || 0;
     $$('#intervalChips .chip').forEach((c) => c.classList.toggle('active', Number(c.dataset.interval) === cur));
+  }
+
+  /* ------------------------------------------------------------ 采集模式
+     模式与提醒方式都用 chip 交互，真正提交的值放在隐藏域里，
+     这样 collectSettings / fillSettingsForm 的通用逻辑完全不用改。 */
+  const MODE_HINT = {
+    interval: '按固定间隔轮询全部账号，只在 CF 点发生变化时推送，适合盯实时变动',
+    daily: '每天在设定的时间点各采集一轮，适合只关心日变化、想减少请求量的场景'
+  };
+
+  const DAILY_NOTIFY_HINT = {
+    change: '只有 CF 点发生变化时才逐账号推送，没变化就不打扰',
+    always: '每轮采集结束后发一条汇总，包含全部账号的当前 CF 点与变动，可在 Webhook 页单独开关'
+  };
+
+  function syncScheduleChips() {
+    const mode = $('#scheduleMode').value === 'daily' ? 'daily' : 'interval';
+    $$('#modeChips .chip').forEach((c) => c.classList.toggle('active', c.dataset.mode === mode));
+    $('#modeIntervalBox').classList.toggle('hidden', mode !== 'interval');
+    $('#modeDailyBox').classList.toggle('hidden', mode !== 'daily');
+    $('#modeHint').textContent = MODE_HINT[mode];
+
+    const notifyMode = $('#dailyNotifyMode').value === 'always' ? 'always' : 'change';
+    $$('#dailyNotifyChips .chip').forEach((c) => c.classList.toggle('active', c.dataset.notify === notifyMode));
+    $('#dailyNotifyHint').textContent = DAILY_NOTIFY_HINT[notifyMode];
+
+    // 面板右上角的一句话预览，用表单里的实时值，保存前也能看到效果
+    $('#modeSummary').textContent = mode === 'daily'
+      ? '每天 ' + (splitDailyTimes($('#dailyTimesInput').value).join(' / ') || '—')
+      : '每 ' + intervalText($('#intervalInput').value) + '采集';
+    syncDailyChips();
+  }
+
+  function syncDailyChips() {
+    const list = splitDailyTimes($('#dailyTimesInput').value);
+    $$('#dailyChips .chip').forEach((c) => c.classList.toggle('active', list.indexOf(c.dataset.time) >= 0));
   }
 
   function renderWebhookVisibility() {
@@ -729,7 +794,7 @@
       const push = PUSH_META[e.push_status] || PUSH_META.none;
       return '<tr>' +
         '<td class="small muted mono">' + esc(e.created_at) + '</td>' +
-        '<td><span class="pill ' + (e.kind === 'change' ? 'info' : (e.kind === 'expired' || e.kind === 'error' ? 'bad' : (e.kind === 'recover' ? 'ok' : 'mute'))) + '">' + meta.label + '</span></td>' +
+        '<td><span class="pill ' + (KIND_PILL[e.kind] || 'mute') + '">' + meta.label + '</span></td>' +
         '<td><div class="cell-title" style="font-weight:550">' + esc(e.title) + '</div>' +
         '<div class="cell-sub" style="white-space:pre-wrap">' + esc(e.message || '') +
         (e.push_detail ? '<div class="muted" style="margin-top:3px;font-size:11px">' + esc(e.push_detail) + '</div>' : '') + '</div></td>' +
@@ -862,6 +927,7 @@
           $('#jitterVal').textContent = el.value + '%';
         }
         if (el.dataset.setting === 'poll_interval') syncIntervalChips();
+        if (el.dataset.setting === 'daily_times') syncScheduleChips();
         if (el.closest('#view-settings')) state.settingsDirty = true;
         if (el.closest('#view-webhook')) state.webhookDirty = true;
       });
@@ -878,6 +944,42 @@
         $('#intervalInput').value = chip.dataset.interval;
         syncIntervalChips();
         state.settingsDirty = true;
+      };
+    });
+
+    // 采集模式切换：只改隐藏域，真正的排期由保存后服务端 reschedule 决定
+    $$('#modeChips .chip').forEach((chip) => {
+      chip.onclick = () => {
+        $('#scheduleMode').value = chip.dataset.mode;
+        state.settingsDirty = true;
+        syncScheduleChips();
+      };
+    });
+
+    // 定时时间点快捷 chip：点一下加入，再点一下移除（至少保留一个）
+    $$('#dailyChips .chip').forEach((chip) => {
+      chip.onclick = () => {
+        const slot = chip.dataset.time;
+        const list = splitDailyTimes($('#dailyTimesInput').value);
+        const idx = list.indexOf(slot);
+        if (idx >= 0) {
+          if (list.length === 1) return toast('至少保留一个时间点', 'bad');
+          list.splice(idx, 1);
+        } else {
+          list.push(slot);
+        }
+        list.sort();
+        $('#dailyTimesInput').value = list.join(',');
+        state.settingsDirty = true;
+        syncScheduleChips();
+      };
+    });
+
+    $$('#dailyNotifyChips .chip').forEach((chip) => {
+      chip.onclick = () => {
+        $('#dailyNotifyMode').value = chip.dataset.notify;
+        state.settingsDirty = true;
+        syncScheduleChips();
       };
     });
 

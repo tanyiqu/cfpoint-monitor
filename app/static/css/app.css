@@ -283,6 +283,7 @@ select { appearance: none; background-image: url("data:image/svg+xml;charset=utf
   background: var(--info-soft); color: var(--info);
 }
 .event-mini .ev.change .ico { background: var(--brand-soft); color: var(--brand-dark); }
+.event-mini .ev.digest .ico { background: var(--brand-soft); color: var(--brand-dark); }
 .event-mini .ev.expired .ico, .event-mini .ev.error .ico { background: var(--bad-soft); color: var(--bad); }
 .event-mini .ev.recover .ico { background: var(--ok-soft); color: var(--ok); }
 .event-mini .ev .body { min-width: 0; flex: 1; }

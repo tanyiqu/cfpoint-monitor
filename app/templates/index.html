@@ -90,12 +90,12 @@
 
         <div class="panel runner">
           <div class="lead"><span class="live-dot" id="runDot"></span><span id="runText">后台调度中</span></div>
-          <div class="item">采集频率 <b id="runInterval">—</b></div>
+          <div class="item">采集计划 <b id="runInterval">—</b></div>
           <div class="item">下次采集 <b id="runNext">—</b></div>
           <div class="item">下次保活 <b id="runKeep">—</b></div>
           <div class="item" id="runActivity"></div>
           <div class="spacer"></div>
-          <button class="btn btn-sm btn-ghost" data-goto="settings">调整频率</button>
+          <button class="btn btn-sm btn-ghost" data-goto="settings">调整采集设置</button>
         </div>
 
         <div class="panel">
@@ -216,6 +216,10 @@
                 <label class="switch"><input type="checkbox" data-setting="notify_on_error"><span class="track"></span><span class="txt">连续采集失败</span></label>
                 <div class="hint">连续失败 <input type="number" data-setting="error_notify_after" style="width:64px;display:inline-block;padding:2px 7px;height:26px" min="1" max="50"> 次后推送</div>
               </div>
+              <div class="field">
+                <label class="switch"><input type="checkbox" data-setting="notify_on_digest"><span class="track"></span><span class="txt">定时采集汇总</span></label>
+                <div class="hint">定时采集选「每次采集后都提醒」时，每轮发一条全部账号的当前数据</div>
+              </div>
             </div>
           </div>
           <div class="form-actions">
@@ -237,26 +241,87 @@
       <!-- ============================================ 设置 -->
       <section class="view hidden" id="view-settings">
         <div class="panel">
-          <div class="panel-head"><h2>采集频率</h2></div>
+          <div class="panel-head">
+            <h2>采集模式</h2>
+            <span class="sub" id="modeSummary">—</span>
+          </div>
           <div class="panel-body">
-            <div class="form-grid">
-              <div class="field full">
-                <label>轮询间隔</label>
-                <div class="chips" id="intervalChips">
-                  <button class="chip" data-interval="30">30 秒</button>
-                  <button class="chip" data-interval="60">1 分钟</button>
-                  <button class="chip" data-interval="300">5 分钟</button>
-                  <button class="chip" data-interval="600">10 分钟</button>
-                  <button class="chip" data-interval="1800">30 分钟</button>
-                  <button class="chip" data-interval="3600">1 小时</button>
-                </div>
-                <div style="display:flex;align-items:center;gap:9px;margin-top:6px">
-                  <input type="number" data-setting="poll_interval" id="intervalInput" min="20" max="86400" style="width:130px">
-                  <span class="small muted">秒（最小 20 秒，建议不低于 60 秒）</span>
-                </div>
-                <div class="hint">所有启用账号会按此间隔依次采集，账号之间还有 1~3 秒随机间隔，实际一轮耗时 = 间隔 × 账号数。</div>
-              </div>
 
+            <div class="field full">
+              <label>调度方式</label>
+              <div class="chips" id="modeChips">
+                <button class="chip" data-mode="interval">实时采集</button>
+                <button class="chip" data-mode="daily">定时采集</button>
+              </div>
+              <!-- 真正的取值存在隐藏域里，chip 只负责交互 -->
+              <input type="hidden" data-setting="schedule_mode" id="scheduleMode">
+              <div class="hint" id="modeHint"></div>
+            </div>
+
+            <div class="divider" style="margin:18px 0"></div>
+
+            <!-- ---------- 实时采集 ---------- -->
+            <div id="modeIntervalBox">
+              <div class="section-title">实时采集参数</div>
+              <div class="form-grid">
+                <div class="field full">
+                  <label>轮询间隔</label>
+                  <div class="chips" id="intervalChips">
+                    <button class="chip" data-interval="30">30 秒</button>
+                    <button class="chip" data-interval="60">1 分钟</button>
+                    <button class="chip" data-interval="300">5 分钟</button>
+                    <button class="chip" data-interval="600">10 分钟</button>
+                    <button class="chip" data-interval="1800">30 分钟</button>
+                    <button class="chip" data-interval="3600">1 小时</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px;margin-top:6px">
+                    <input type="number" data-setting="poll_interval" id="intervalInput" min="20" max="86400" style="width:130px">
+                    <span class="small muted">秒（最小 20 秒，建议不低于 60 秒）</span>
+                  </div>
+                  <div class="hint">所有启用账号会按此间隔依次采集，账号之间还有 1~3 秒随机间隔，实际一轮耗时 = 间隔 × 账号数。<br>
+                    实时采集只在 CF 点发生变化时推送，内容为当前余额与变动量。</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------- 定时采集 ---------- -->
+            <div id="modeDailyBox" class="hidden">
+              <div class="section-title">定时采集参数</div>
+              <div class="form-grid">
+                <div class="field full">
+                  <label>每天采集的时间点</label>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <input type="text" data-setting="daily_times" id="dailyTimesInput"
+                           placeholder="06:00,18:00" style="max-width:260px">
+                    <span class="small muted">24 小时制，多个时间点用英文逗号分隔</span>
+                  </div>
+                  <div class="chips" id="dailyChips" style="margin-top:6px">
+                    <button class="chip" data-time="06:00">06:00</button>
+                    <button class="chip" data-time="09:00">09:00</button>
+                    <button class="chip" data-time="12:00">12:00</button>
+                    <button class="chip" data-time="18:00">18:00</button>
+                    <button class="chip" data-time="21:00">21:00</button>
+                  </div>
+                  <div class="hint">点击上面的快捷时间可以快速增减。到点后依次采集全部启用账号，账号之间仍有 1~3 秒随机间隔。<br>
+                    时间点会附加 0~30 秒随机偏移，避免每天分秒不差地请求接口。</div>
+                </div>
+
+                <div class="field full">
+                  <label>提醒方式</label>
+                  <div class="chips" id="dailyNotifyChips">
+                    <button class="chip" data-notify="change">仅在有变化时提醒</button>
+                    <button class="chip" data-notify="always">每次采集后都提醒</button>
+                  </div>
+                  <input type="hidden" data-setting="daily_notify_mode" id="dailyNotifyMode">
+                  <div class="hint" id="dailyNotifyHint"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider" style="margin:18px 0"></div>
+
+            <div class="section-title">公共参数</div>
+            <div class="form-grid">
               <div class="field">
                 <label>随机抖动 <span class="muted small" id="jitterVal">15%</span></label>
                 <input type="range" data-setting="jitter" id="jitterRange" min="0" max="50" step="5" style="width:100%">
@@ -343,6 +408,7 @@
               <select id="logFilter" style="width:130px;height:30px;padding:0 28px 0 9px;font-size:12.5px">
                 <option value="">全部类型</option>
                 <option value="change">CF点变动</option>
+                <option value="digest">定时汇总</option>
                 <option value="expired">Cookie 失效</option>
                 <option value="recover">恢复</option>
                 <option value="error">采集异常</option>
